@@ -43,8 +43,8 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.1 beta 3"
-DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. This update provides bugfixes and other improvements."
+VERSION = "27.1"
+DESCRIPTION = "The florrForge version with websocket is finally available. All functions you love about florrForge but now with actual real-time info. Special thanks to VortrexPrime for providing me the websocket."
 
 TRIGGERS = ["manfred", "pehiley", "magic stick", "unique"]
 EMOJI = "💲"
