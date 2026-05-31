@@ -43,8 +43,8 @@ INTERACTIVE_LIST_TARGET_CHANNEL_IDS = [
 EPHEMERAL_REQUEST_LOG_CHANNEL_ID = 1385094756912205984
 
 VERSION_CHANNEL_ID = 1457390424296521883
-VERSION = "27.1"
-DESCRIPTION = "The florrForge version with websocket is finally available. All functions you love about florrForge but now with actual real-time info. Special thanks to VortrexPrime for providing me the websocket."
+VERSION = "27.1.1"
+DESCRIPTION = "florrOS beta gives you an early preview of upcoming apps and features. This update provides bugfixes and other improvements."
 
 TRIGGERS = ["manfred", "pehiley", "magic stick", "unique"]
 EMOJI = "💲"
@@ -345,18 +345,21 @@ def _merge_forges_into_data_list(forges: dict):
     print(f"[WS] data_list synced from forges_request: {len(data_list)} items.")
 
 async def _handle_forge_event(data: dict):
-    """Called for every incoming unique forge event from the WebSocket."""
-    rarity = data.get("rarity", "")
-    action = data.get("action", "")
+    """Called for every incoming petal event from the WebSocket."""
+    rarity = data.get("rarity", "").lower().strip()
+    action = data.get("action", "").lower().strip()
     petal = data.get("petal", "")
     player = data.get("player", "")
     image_url = data.get("image", None)
     time_str = data.get("timestamp", "")
 
-    forge_actions = {"forge", "forged", "take", "took", "taken", "steal", "stole", "stolen"}
+    # Log ALL incoming petal events so we can see exactly what comes in
+    print(f"[WS] PETAL EVENT: rarity={rarity!r} action={action!r} petal={petal!r} player={player!r}")
+
+    forge_actions = {"forge", "forged", "take", "took", "taken", "steal", "stole", "stolen", "find", "found", "crafted"}
 
     if rarity == "unique" and action in forge_actions:
-        print(f"[WS] UNIQUE FORGE: {player} {action} {petal}")
+        print(f"[WS] UNIQUE FORGE MATCHED: {player} {action} {petal}")
 
         # Parse timestamp
         try:
@@ -369,9 +372,11 @@ async def _handle_forge_event(data: dict):
         # Update data_list
         updated_cost = _update_data_for_ws(petal, player, epoch)
 
-        # Update persistent lists and send notifications
-        asyncio.create_task(update_all_persistent_list_prompts(force_new=False))
+        # Update persistent lists (force re-post) and send notifications
+        asyncio.create_task(update_all_persistent_list_prompts(force_new=True))
         asyncio.create_task(send_forge_notifications(petal, player, updated_cost, image_url))
+    else:
+        print(f"[WS] Event skipped (rarity={rarity!r} not 'unique' or action={action!r} not in forge_actions)")
 
 def _update_data_for_ws(item_val: str, name_val: str, epoch: float) -> str:
     """Updates data_list for a WebSocket forge event. Returns the new cost string."""
@@ -810,6 +815,7 @@ async def clear_all_persistent_list_prompts():
 
 async def send_forge_notifications(item_val: str, name_val: str, cost_val: str, image_url: str = None):
     """Sends a forge notification embed to all configured channels."""
+    print(f"[NOTIFY] send_forge_notifications called: item={item_val!r} name={name_val!r} cost={cost_val!r} image={image_url!r}")
     for cfg in UPDATE_NOTIFICATION_CONFIG:
         cid = cfg.get("channel_id")
         rid = cfg.get("role_id_to_ping")
@@ -817,7 +823,9 @@ async def send_forge_notifications(item_val: str, name_val: str, cost_val: str, 
             continue
         chan = client.get_channel(cid)
         if not chan:
+            print(f"[NOTIFY] Channel {cid} not found in cache — bot may not be in that server/channel")
             continue
+        print(f"[NOTIFY] Sending to channel {cid} ({getattr(chan, 'name', '?')})")
 
         role_mention = ""
         allowed_mentions = discord.AllowedMentions.none()
@@ -825,7 +833,7 @@ async def send_forge_notifications(item_val: str, name_val: str, cost_val: str, 
             role = chan.guild.get_role(rid)
             if role:
                 role_mention = role.mention
-                allowed_mentions = discord.AllowedMentions(roles=[discord.Object(id=rid)])
+                allowed_mentions = discord.AllowedMentions(roles=[role])
 
         embed = discord.Embed(
             title=f"The Unique {item_val} has been forged!",
